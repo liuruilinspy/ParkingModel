@@ -104,7 +104,7 @@ def shortest_path_by_direction(all_pair, start, end, next_node):
     if key not in all_pair:
         raise Exception("Wrong key " + key)
     all_paths = all_pair[key]
-    tmp = [p for p in all_paths if p[1] == next_node]
+    tmp = [p for p in all_paths if p[1] == next_node and start not in p[1:]]
     return min(tmp, key=lambda p: len(p))
 
 
@@ -147,9 +147,10 @@ def candidates_probability(knowledge, prev_path, candidate_paths, all_pair, exit
     :return:
     """
     time_pr = {}
+    cur_node = prev_path[-1]
     for path in candidate_paths:
         candidate_node = path[-1]
-        drive_path = path
+        drive_path = [cur_node] + path
         drive_cost = len(drive_path) * d_cost
         walk_cost = len(shortest_path(all_pair, candidate_node, exit_node)) * w_cost
         uturn_cost = u_cost if is_uturn(prev_path, drive_path) else 0
@@ -180,11 +181,13 @@ def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_
     for next_node, candidates in choices.items():
         time_pr_cdf = []
         time_pr = candidates_probability(knowledge, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available)
-        items = sorted(time_pr.items(), key=lambda i : i[0])
+        items = sorted(time_pr.items(), key=lambda i: i[0])
         for time, p_list in items:
             p = reduce(lambda x, y: x * y, p_list)
             p_less_time = (1 - time_pr_cdf[-1][1]) if len(time_pr_cdf) > 0 else 1
             time_pr_cdf.append((time, 1 - (p * p_less_time)))
+        if sum(list(y for x, y in time_pr_cdf)) < 0.1:
+            print()
         t = [time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(time_pr_cdf, time_pr_cdf[1:])]
         exp[next_node] = sum(list(x*y for x,y in t))
     return exp
@@ -274,7 +277,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
         if all_node_visited(nodeset, knowledge):
             finished = True
 
-        if len(prev_path) > 1000:
+        if len(prev_path) > 200:
             raise Exception("Fall into infinite loop")
     return best_node, prev_path
 

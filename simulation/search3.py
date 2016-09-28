@@ -147,14 +147,17 @@ def candidates_probability(knowledge, prev_path, candidate_paths, all_pair, exit
     :return:
     """
     time_pr = {}
-    cur_node = prev_path[-1]
+    cost_map = {}
     for path in candidate_paths:
         candidate_node = path[-1]
-        drive_path = [cur_node] + path
+        drive_path = path
         drive_cost = len(drive_path) * d_cost
         walk_cost = len(shortest_path(all_pair, candidate_node, exit_node)) * w_cost
         uturn_cost = u_cost if is_uturn(prev_path, drive_path) else 0
         cost = drive_cost + walk_cost + uturn_cost
+        if cost not in cost_map:
+            cost_map[cost] = []
+        cost_map[cost].append(candidate_node)
         if cost < best_cost:
             # better cost
             if knowledge[candidate_node.id] > 0:
@@ -172,24 +175,24 @@ def candidates_probability(knowledge, prev_path, candidate_paths, all_pair, exit
 
         if cost not in time_pr:
             time_pr[cost] = []
+
         time_pr[cost].append(p_not_exist)
-    return time_pr
+    return time_pr, cost_map
 
 
 def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available):
     exp = {}
     for next_node, candidates in choices.items():
         time_pr_cdf = []
-        time_pr = candidates_probability(knowledge, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available)
+        time_pr, cost_map = candidates_probability(knowledge, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available)
         items = sorted(time_pr.items(), key=lambda i: i[0])
         for time, p_list in items:
             p = reduce(lambda x, y: x * y, p_list)
             p_less_time = (1 - time_pr_cdf[-1][1]) if len(time_pr_cdf) > 0 else 1
             time_pr_cdf.append((time, 1 - (p * p_less_time)))
-        if sum(list(y for x, y in time_pr_cdf)) < 0.1:
-            print()
         t = [time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(time_pr_cdf, time_pr_cdf[1:])]
-        exp[next_node] = sum(list(x*y for x,y in t))
+        e = sum(list(x*y for x, y in t))
+        exp[next_node] = e if e > 0 else 10000
     return exp
 
 
@@ -263,6 +266,8 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
 
     while not finished:
         # print(cur_node)
+        if cur_node.id == 218:
+            print()
         choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
         exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
         next_node, best_exp = min(exp.items(), key=lambda e: e[1])
@@ -278,6 +283,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
             finished = True
 
         if len(prev_path) > 200:
+            print(str(prev_path[-1]), str(prev_path[-2]))
             raise Exception("Fall into infinite loop")
     return best_node, prev_path
 
@@ -296,11 +302,14 @@ if __name__ == "__main__":
 
 
     all_pair = all_path(nodeset)
-    for i in range(10):
-        spot_map = generate_map(0.7)
-        knowledge = [-1] * 291
-        # used as threshold when entering the parking lot
-        default_best_cost = 10000
-        best_node, prev_path = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost)
-        print(best_node, len(prev_path), list(map(lambda n: n.id, prev_path)))
+    spot_map = [1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1]
+
+    # for i in range(10):
+    # spot_map = generate_map(0.7)
+    print(spot_map)
+    knowledge = [-1] * 291
+    # used as threshold when entering the parking lot
+    default_best_cost = 10000
+    best_node, prev_path = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost)
+    print(best_node, len(prev_path), list(map(lambda n: n.id, prev_path)))
 

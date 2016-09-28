@@ -192,7 +192,7 @@ def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_
             time_pr_cdf.append((time, 1 - (p * p_less_time)))
         t = [time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(time_pr_cdf, time_pr_cdf[1:])]
         e = sum(list(x*y for x, y in t))
-        exp[next_node] = e if e > 0 else 10000
+        exp[next_node] = e
     return exp
 
 
@@ -253,7 +253,7 @@ def node_list_deep_copy(node_list):
     return new_list
 
 
-def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost):
+def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold):
 
     cur_node = enter_node
     best_cost = default_best_cost
@@ -266,18 +266,21 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
 
     while not finished:
         # print(cur_node)
-        if cur_node.id == 218:
-            print()
+        if cur_node.id == 241:
+            x=0
         choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
         exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
-        next_node, best_exp = min(exp.items(), key=lambda e: e[1])
-        if best_exp > best_cost:
-            finished = True
+        next_node, best_saving = max(exp.items(), key=lambda e: best_cost - e[1])
+        if best_saving < saving_threshold:
+            path = shortest_path(all_pair, cur_node, best_node)
+            cur_node = path[1]
+
         else:
             cur_node = next_node
-            gain_knowledge(knowledge, cur_node, spot_map)
-            prev_path.append(cur_node)
-            best_cost, best_node = update_best_node(knowledge, all_pair, prev_path, nodeset, cur_node, exit_node, d_cost, w_cost, u_cost)
+
+        gain_knowledge(knowledge, cur_node, spot_map)
+        prev_path.append(cur_node)
+        best_cost, best_node = update_best_node(knowledge, all_pair, prev_path, nodeset, cur_node, exit_node, d_cost, w_cost, u_cost)
 
         if all_node_visited(nodeset, knowledge):
             finished = True
@@ -310,6 +313,7 @@ if __name__ == "__main__":
     knowledge = [-1] * 291
     # used as threshold when entering the parking lot
     default_best_cost = 10000
-    best_node, prev_path = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost)
+    saving_threshold = 10
+    best_node, prev_path = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold)
     print(best_node, len(prev_path), list(map(lambda n: n.id, prev_path)))
 

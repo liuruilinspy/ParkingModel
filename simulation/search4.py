@@ -183,15 +183,20 @@ def candidates_probability(knowledge, prev_path, candidate_paths, all_pair, exit
 def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available):
     exp = {}
     for next_node, candidates in choices.items():
-        time_pr_cdf = []
+        saving_time_pr_cdf = []
         time_pr, cost_map = candidates_probability(knowledge, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available)
         items = sorted(time_pr.items(), key=lambda i: i[0])
+        e = 0
         for time, p_list in items:
+            # if time > best_cost:
+            #     www = 0
             p = reduce(lambda x, y: x * y, p_list)
-            p_less_time = (1 - time_pr_cdf[-1][1]) if len(time_pr_cdf) > 0 else 1
-            time_pr_cdf.append((time, 1 - (p * p_less_time)))
-        t = [time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(time_pr_cdf, time_pr_cdf[1:])]
-        e = sum(list(x*y for x, y in t))
+            e += (best_cost - time) * (1 - p)
+            # p_less_time = (1 - saving_time_pr_cdf[-1][1]) if len(saving_time_pr_cdf) > 0 else 1
+            # saving_time = best_cost - time if best_cost >= time else 0
+            # saving_time_pr_cdf.append((best_cost - time, 1 - (p * p_less_time)))
+        # t = [saving_time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(saving_time_pr_cdf, saving_time_pr_cdf[1:])]
+        # exp[next_node] = sum(list(x*y for x, y in t))
         exp[next_node] = e
     return exp
 
@@ -270,7 +275,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
             x=0
         choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
         exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
-        next_node, best_saving = max(exp.items(), key=lambda e: best_cost - e[1])
+        next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
         if best_saving < saving_threshold:
             path = shortest_path(all_pair, cur_node, best_node)
             cur_node = path[1]

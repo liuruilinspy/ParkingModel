@@ -188,8 +188,6 @@ def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_
         items = sorted(time_pr.items(), key=lambda i: i[0])
         e = 0
         for time, p_list in items:
-            # if time > best_cost:
-            #     www = 0
             p = reduce(lambda x, y: x * y, p_list)
             e += (best_cost - time) * (1 - p)
             # p_less_time = (1 - saving_time_pr_cdf[-1][1]) if len(saving_time_pr_cdf) > 0 else 1
@@ -217,7 +215,8 @@ def update_best_node(knowledge, all_pair, prev_path, nodeset, cur_node, exit_nod
     :param w_cost:
     :return:
     """
-    best_cost = 10000000
+    best_cost = 250
+    # dummy best node
     best_node = Node(-1)
     for i in range(len(knowledge)):
         if knowledge[i] > 0:
@@ -233,6 +232,7 @@ def update_best_node(knowledge, all_pair, prev_path, nodeset, cur_node, exit_nod
 
 
 def is_uturn(prev_path, to_path):
+    # get if the next direction requires u turn
     if len(prev_path) > 1 and len(to_path) > 1 and prev_path[-2] == to_path[1]:
         return True
     return False
@@ -262,6 +262,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
 
     cur_node = enter_node
     best_cost = default_best_cost
+    # dummy best node
     best_node = Node(-1)
     prev_path = [enter_node]
 
@@ -269,17 +270,25 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
 
     gain_knowledge(knowledge, cur_node, spot_map)
 
-    while not finished:
-        # print(cur_node)
-        if cur_node.id == 241:
-            x=0
-        choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
-        exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
-        next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
-        if best_saving < saving_threshold:
-            path = shortest_path(all_pair, cur_node, best_node)
-            cur_node = path[1]
+    back_steps = 0
 
+    while not finished:
+        # possible candidates of each direction
+        choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
+        # saving time expectation of each direction
+        exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
+        # best saving time
+        next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
+        # print("Cur:", cur_node, "Next:", next_node, "Saving:", best_saving, "Best:", best_node)
+        if best_saving < saving_threshold:
+            if cur_node == best_node:
+                # arrive at best spot
+                finished = True
+            else:
+                # head to current best spot
+                path = shortest_path(all_pair, cur_node, best_node)
+                cur_node = path[1]
+                back_steps += 1
         else:
             cur_node = next_node
 
@@ -291,9 +300,9 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
             finished = True
 
         if len(prev_path) > 200:
-            print(str(prev_path[-1]), str(prev_path[-2]))
+            print(str(prev_path[-1]), str(prev_path[-2]), str(prev_path[-3]))
             raise Exception("Fall into infinite loop")
-    return best_node, prev_path
+    return best_node, prev_path, back_steps
 
 
 if __name__ == "__main__":
@@ -304,21 +313,29 @@ if __name__ == "__main__":
     exit_node = nodeset[253]
     p_available = 0.5
 
+    # drive cost of one spot distance
     d_cost = 1
+    # walk cost of one spot distance
     w_cost = 4
+    # u turn cost of one spot distance
     u_cost = 8
 
 
     all_pair = all_path(nodeset)
-    spot_map = [1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1]
 
-    # for i in range(10):
-    # spot_map = generate_map(0.7)
-    print(spot_map)
-    knowledge = [-1] * 291
-    # used as threshold when entering the parking lot
-    default_best_cost = 10000
-    saving_threshold = 10
-    best_node, prev_path = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold)
-    print(best_node, len(prev_path), list(map(lambda n: n.id, prev_path)))
+    fo = open("result.txt", "w")
+    fo.write("density \t saving_threshold \t final_position \t path_length \t back_steps \t final_parking_options \t path \t map \n")
+
+    for saving_threshold in [10, 20, 30, 40]:
+        for density in range(10, 100, 10):
+            for i in range(10):
+                spot_map = generate_map(density / 100)
+                knowledge = [-1] * 291
+                # used as threshold when entering the parking lot
+                default_best_cost = 250
+                best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold)
+                print("Final:", prev_path[-1], "ParkOption:", prev_path[-1].empty_parking_slot(spot_map), "Length:", len(prev_path), "BackSteps:", back_steps)
+                # density, saving_threshold, final position, path length, back steps, final parking options, path, map
+                fo.write(str(density) + "\t" + str(saving_threshold) + "\t" + str(prev_path[-1]) + "\t" + str(len(prev_path)) + "\t" + str(back_steps) + "\t" + str(prev_path[-1].empty_parking_slot(spot_map)) + "\t" + str(list(map(lambda n: n.id, prev_path))) + "\t" + str(spot_map) + "\n")
+    fo.close()
 

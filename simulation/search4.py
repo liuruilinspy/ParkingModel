@@ -131,74 +131,6 @@ def search_by_depth(all_pair, start, depth, d_cost, nodeset):
     return search_result
 
 
-def candidates_probability(knowledge, prev_path, candidate_paths, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available):
-    """
-    Calculate the not available probability
-    :param knowledge:
-    :param prev_path:
-    :param candidate_paths:
-    :param all_pair:
-    :param exit_node:
-    :param best_cost:
-    :param d_cost:
-    :param w_cost:
-    :param u_cost:
-    :param p_available:
-    :return:
-    """
-    time_pr = {}
-    cost_map = {}
-    for path in candidate_paths:
-        candidate_node = path[-1]
-        drive_path = path
-        drive_cost = len(drive_path) * d_cost
-        walk_cost = len(shortest_path(all_pair, candidate_node, exit_node)) * w_cost
-        uturn_cost = u_cost if is_uturn(prev_path, drive_path) else 0
-        cost = drive_cost + walk_cost + uturn_cost
-        if cost not in cost_map:
-            cost_map[cost] = []
-        cost_map[cost].append(candidate_node)
-        if cost < best_cost:
-            # better cost
-            if knowledge[candidate_node.id] > 0:
-                # known node with available parking spots
-                p_not_exist = 0
-            elif knowledge[candidate_node.id] > -1:
-                # known node without available parking spots
-                p_not_exist = 1
-            else:
-                # unknown node
-                p_not_exist = 1 - p_available
-        else:
-            # no better cost
-            p_not_exist = 1
-
-        if cost not in time_pr:
-            time_pr[cost] = []
-
-        time_pr[cost].append(p_not_exist)
-    return time_pr, cost_map
-
-
-def choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available):
-    exp = {}
-    for next_node, candidates in choices.items():
-        saving_time_pr_cdf = []
-        time_pr, cost_map = candidates_probability(knowledge, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available)
-        items = sorted(time_pr.items(), key=lambda i: i[0])
-        e = 0
-        for time, p_list in items:
-            p = reduce(lambda x, y: x * y, p_list)
-            e += (best_cost - time) * (1 - p)
-            # p_less_time = (1 - saving_time_pr_cdf[-1][1]) if len(saving_time_pr_cdf) > 0 else 1
-            # saving_time = best_cost - time if best_cost >= time else 0
-            # saving_time_pr_cdf.append((best_cost - time, 1 - (p * p_less_time)))
-        # t = [saving_time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(saving_time_pr_cdf, saving_time_pr_cdf[1:])]
-        # exp[next_node] = sum(list(x*y for x, y in t))
-        exp[next_node] = e
-    return exp
-
-
 def gain_knowledge(knowledge, node, spot_map):
     knowledge[node.id] = len(node.empty_parking_slot(spot_map))
 
@@ -258,7 +190,19 @@ def node_list_deep_copy(node_list):
     return new_list
 
 
-def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold):
+def total_cost(path, all_pair, exit_node, d_cost, w_cost, u_cost):
+    cost = 0
+    i = -2
+    for j in range(len(path)):
+        cost += d_cost
+        if i >= 0 and path[i] == path[j]:
+            cost += u_cost
+        i += 1
+    cost += w_cost * len(shortest_path(all_pair, path[-1], exit_node))
+    return cost
+
+
+def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, x, d_cost, w_cost, u_cost, default_best_cost, saving_threshold):
 
     cur_node = enter_node
     best_cost = default_best_cost
@@ -276,10 +220,9 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
         # possible candidates of each direction
         choices = search_by_depth(all_pair, cur_node, best_cost, d_cost, nodeset)
         # saving time expectation of each direction
-        exp = choice_expectation(knowledge, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available)
-        # best saving time
+        exp = choice_expectation(knowledge, spot_map, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available, x)
+        # best expected saving time
         next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
-        # print("Cur:", cur_node, "Next:", next_node, "Saving:", best_saving, "Best:", best_node)
         if best_saving < saving_threshold:
             if cur_node == best_node:
                 # arrive at best spot
@@ -305,27 +248,80 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
     return best_node, prev_path, back_steps
 
 
-if __name__ == "__main__":
+def candidates_probability(knowledge, spot_map, prev_path, candidate_paths, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available, x):
+    """
+    Calculate the not available probability
+    :param knowledge:
+    :param prev_path:
+    :param candidate_paths:
+    :param all_pair:
+    :param exit_node:
+    :param best_cost:
+    :param d_cost:
+    :param w_cost:
+    :param u_cost:
+    :param p_available:
+    :return:
+    """
+    time_pr = {}
+    cost_map = {}
+    for path in candidate_paths:
+        candidate_node = path[-1]
+        drive_path = path
+        drive_cost = len(drive_path) * d_cost
+        walk_cost = len(shortest_path(all_pair, candidate_node, exit_node)) * w_cost
+        uturn_cost = u_cost if is_uturn(prev_path, drive_path) else 0
+        cost = drive_cost + walk_cost + uturn_cost
+        if cost not in cost_map:
+            cost_map[cost] = []
+        cost_map[cost].append(candidate_node)
+        if cost < best_cost:
+            # better cost
+            if knowledge[candidate_node.id] > 0:
+                # known node with available parking spots
+                p_not_exist = 0
+            elif knowledge[candidate_node.id] > -1:
+                # known node without available parking spots
+                p_not_exist = 1
+            else:
+                # unknown node
+                p_not_exist = 1 - p_available
+                if len(candidate_node.empty_parking_slot(spot_map)) > 0:
+                    p_not_exist += x
+                else:
+                    p_not_exist -= x
+        else:
+            # no better cost
+            p_not_exist = 1
 
-    nodeset = load_graph("spot_graph")
+        if cost not in time_pr:
+            time_pr[cost] = []
 
-    enter_node = nodeset[219]
-    exit_node = nodeset[253]
-    p_available = 0.5
-
-    # drive cost of one spot distance
-    d_cost = 1
-    # walk cost of one spot distance
-    w_cost = 4
-    # u turn cost of one spot distance
-    u_cost = 8
+        time_pr[cost].append(p_not_exist)
+    return time_pr, cost_map
 
 
-    all_pair = all_path(nodeset)
+def choice_expectation(knowledge, spot_map, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, p_available, x):
+    exp = {}
+    for next_node, candidates in choices.items():
+        saving_time_pr_cdf = []
+        time_pr, cost_map = candidates_probability(knowledge, spot_map, prev_path, candidates, all_pair, exit_node, best_cost, d_cost, w_cost, u_cost, p_available, x)
+        items = sorted(time_pr.items(), key=lambda i: i[0])
+        e = 0
+        for time, p_list in items:
+            p_equal_to_time = reduce(lambda x, y: x * y, p_list)
+            p_less_than_time = (1 - saving_time_pr_cdf[-1][1]) if len(saving_time_pr_cdf) > 0 else 1
+            # saving_time = best_cost - time
+            saving_time_pr_cdf.append((best_cost - time, 1 - (p_equal_to_time * p_less_than_time)))
+        t = [saving_time_pr_cdf[0]] + [(y[0], y[1] - x[1]) for x, y in zip(saving_time_pr_cdf, saving_time_pr_cdf[1:])]
+        exp[next_node] = sum(list(x*y for x, y in t))
+    return exp
 
+
+def save_result():
     fo = open("result.txt", "w")
-    fo.write("density \t saving_threshold \t final_position \t path_length \t back_steps \t final_parking_options \t path \t map \n")
-
+    fo.write(
+        "density \t saving_threshold \t final_position \t path_length \t back_steps \t final_parking_options \t path \t map \n")
     for saving_threshold in [10, 20, 30, 40]:
         for density in range(10, 100, 10):
             for i in range(10):
@@ -339,3 +335,36 @@ if __name__ == "__main__":
                 fo.write(str(density) + "\t" + str(saving_threshold) + "\t" + str(prev_path[-1]) + "\t" + str(len(prev_path)) + "\t" + str(back_steps) + "\t" + str(prev_path[-1].empty_parking_slot(spot_map)) + "\t" + str(list(map(lambda n: n.id, prev_path))) + "\t" + str(spot_map) + "\n")
     fo.close()
 
+
+if __name__ == "__main__":
+
+    nodeset = load_graph("spot_graph")
+
+    enter_node = nodeset[219]
+    exit_node = nodeset[253]
+    p_available = 0.5
+    x = 0
+
+    # drive cost of one spot distance
+    d_cost = 1
+    # walk cost of one spot distance
+    w_cost = 4
+    # u turn cost of one spot distance
+    u_cost = 8
+
+
+    all_pair = all_path(nodeset)
+
+    # simple test
+    density = 90
+    saving_threshold = 10
+    spot_map = generate_map(density / 100)
+    knowledge = [-1] * 291
+    # used as threshold when entering the parking lot
+    default_best_cost = 250
+    best_node, path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node,
+                                               p_available, x, d_cost, w_cost, u_cost, default_best_cost, saving_threshold)
+    print("Final:", path[-1], "ParkOption:", path[-1].empty_parking_slot(spot_map), "Length:", len(path),
+          "BackSteps:", back_steps, "Cost:", total_cost(path, all_pair, exit_node, d_cost, w_cost, u_cost))
+
+    # save_result()

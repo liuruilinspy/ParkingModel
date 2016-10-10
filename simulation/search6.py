@@ -2,23 +2,27 @@ import random
 
 from functools import reduce
 
+import scipy.stats
+
+from simulation.generate_graph import generate_graph
 from simulation.node import Node
 
 
-def load_graph(file):
+def load_spot_graph(file):
     """
     Load the graph structure from 'spot_graph'
     :param file: spot_graph
     :return:
     """
     nodeset = {}
+
     lines = [line.rstrip("\n") for line in open(file, "r")]
 
     # initialize all the nodes
     for line in lines:
         tabs = line.split(" ")
         id = int(tabs[0])
-        node = Node(id)
+        node = Node(id, "D")
         parking_spots = set()
         if len(tabs) > 2:
             p_s = tabs[2].split(",")
@@ -40,18 +44,65 @@ def load_graph(file):
     return nodeset
 
 
-def generate_map(perctge):
+def generate_map(perctge, total_spots):
     """
     Generate a random map by perctage
     :param perctge: percentage of occupancy
     :return:
     """
     # 0: empty 1: taken
-    random_spot = random.sample(range(179), int(179 * perctge))
-    spots = [0] * 179
+    random_spot = random.sample(range(total_spots), int(round(total_spots * perctge)))
+    spots = [0] * total_spots
     for i in random_spot:
         spots[i] = 1
     return spots
+
+
+def generate_gaussian_map(nodeset, all_pair, exit_node, sigma, perctge, total_spots):
+    spot_map = [0] * total_spots
+    occupancy = int(total_spots * perctge)
+
+    distance_distribution = {}
+
+    # node list in every distance
+    nodeitems = [(key, val) for key, val in nodeset.items() if val.type == "D"]
+    for key, node in nodeitems:
+        if node == exit_node:
+            continue
+        p = shortest_path(all_pair, node, exit_node)
+        if len(p) not in distance_distribution:
+            distance_distribution[len(p)] = []
+        distance_distribution[len(p)].append(node)
+
+    exp = 0
+    pdf = {}
+    slots = {}
+    for key, val in distance_distribution.items():
+        p = round(scipy.stats.norm(0, sigma).pdf(key / 3), 2)
+        pdf[key] = p
+        parking = set()
+        for slot in val:
+            parking.update(slot.empty_parking_slot(spot_map))
+        slots[key] = parking
+        exp += len(parking) * p
+
+    # increment to comply with total occupancy percentage
+    increment = (occupancy - exp) / total_spots
+
+    # print(increment)
+
+    random_spot = []
+    for key, val in distance_distribution.items():
+        # print(key,len(slots[key]), pdf[key] + increment)
+        n = int(round(len(slots[key]) * pdf[key]) + round(len(slots[key]) * increment))
+        s = n if n <= len(slots[key]) else len(slots[key])
+        random_spot += random.sample(slots[key], s)
+
+    # print(len(random_spot) / total_spots, len(random_spot) - occupancy)
+    for s in random_spot:
+        spot_map[s] = 1
+
+    return spot_map
 
 
 def search_path(start, end):
@@ -78,8 +129,9 @@ def search_path(start, end):
 
 def all_path(nodeset):
     all_pair = {}
-    for k1, start in nodeset.items():
-        for k2, end in nodeset.items():
+    nodeitems = [(key, val) for key, val in nodeset.items() if val.type == "D"]
+    for k1, start in nodeitems:
+        for k2, end in nodeitems:
             if k1 == k2:
                 continue
             all_paths = search_path(start, end)
@@ -122,7 +174,7 @@ def search_by_depth(all_pair, start, depth, d_cost, nodeset):
     for neighbor in start.neighbors:
         one_direction = []
         for k, end in nodeset.items():
-            if start == end:
+            if start == end or end.type != "D":
                 continue
             path = shortest_path_by_direction(all_pair, start, end, neighbor)
             if len(path) * d_cost < depth:
@@ -149,7 +201,7 @@ def update_best_node(knowledge, all_pair, prev_path, nodeset, cur_node, exit_nod
     """
     best_cost = 250
     # dummy best node
-    best_node = Node(-1)
+    best_node = Node(-1, "D")
     for i in range(len(knowledge)):
         if knowledge[i] > 0:
             walk_cost = len(shortest_path(all_pair, nodeset[i], exit_node)) * w_cost
@@ -207,7 +259,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_ava
     cur_node = enter_node
     best_cost = default_best_cost
     # dummy best node
-    best_node = Node(-1)
+    best_node = Node(-1, "D")
     prev_path = [enter_node]
 
     finished = False
@@ -318,32 +370,18 @@ def choice_expectation(knowledge, spot_map, all_pair, choices, exit_node, prev_p
     return exp
 
 
-def save_result():
-    fo = open("result_sample.txt", "w")
-    fo.write(
-        "density \t saving_threshold \t final_position \t path_length \t back_steps \t final_parking_options \t path \t map \n")
-    for saving_threshold in [10, 20, 30, 40]:
-        for density in range(10, 100, 10):
-            for i in range(10):
-                spot_map = generate_map(density / 100)
-                knowledge = [-1] * 291
-                # used as threshold when entering the parking lot
-                default_best_cost = 250
-                best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, p_available, d_cost, w_cost, default_best_cost, saving_threshold)
-                print("Final:", prev_path[-1], "ParkOption:", prev_path[-1].empty_parking_slot(spot_map), "Length:", len(prev_path), "BackSteps:", back_steps)
-                # density, saving_threshold, final position, path length, back steps, final parking options, path, map
-                fo.write(str(density) + "\t" + str(saving_threshold) + "\t" + str(prev_path[-1]) + "\t" + str(len(prev_path)) + "\t" + str(back_steps) + "\t" + str(prev_path[-1].empty_parking_slot(spot_map)) + "\t" + str(list(map(lambda n: n.id, prev_path))) + "\t" + str(spot_map) + "\n")
-    fo.close()
-
-
 if __name__ == "__main__":
 
-    nodeset = load_graph("spot_graph")
+    # nodeset = load_spot_graph("spot_graph")
+    # row, column, parking_row, parking_column
+    row, column, parking_row, parking_column = 2, 2, 5, 10
+    nodeset, d_size, p_size, n_size = generate_graph(2, 2, 2, 3)
 
-    enter_node = nodeset[219]
-    exit_node = nodeset[253]
+    enter_node = nodeset[0]
+    exit_node = nodeset[len(nodeset) - 1]
     p_available = 0.5
-    x = 0
+
+    x = 0.2
 
     # drive cost of one spot distance
     d_cost = 1
@@ -356,15 +394,49 @@ if __name__ == "__main__":
     all_pair = all_path(nodeset)
 
     # simple test
-    density = 90
+
+    total_spots = d_size + p_size + n_size
+    # occupancy density
+    density = 10
+    # stop forward search threshold
     saving_threshold = 10
-    spot_map = generate_map(density / 100)
-    knowledge = [-1] * 291
+    # visited node
+    knowledge = [-1] * len(nodeset)
     # used as threshold when entering the parking lot
     default_best_cost = 250
+
+    sigma = 1
+
+    spot_map = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
+
     best_node, path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node,
                                                p_available, x, d_cost, w_cost, u_cost, default_best_cost, saving_threshold)
     print("Final:", path[-1], "ParkOption:", path[-1].empty_parking_slot(spot_map), "Length:", len(path),
           "BackSteps:", back_steps, "Cost:", total_cost(path, all_pair, exit_node, d_cost, w_cost, u_cost))
 
-    # save_result()
+    fo = open("result.txt", "w")
+    fo.write(
+        "density \t saving_threshold \t x_value \t map \t final_position \t path_length \t cost \t back_steps \t final_parking_options \t path \t map \n")
+    for saving_threshold in [10, 20, 30, 40]:
+        for density in range(10, 100, 10):
+            for x in [0, 0.1, 0.2, 0.3]:
+                print("Setting: ", saving_threshold, density, x)
+                for i in range(100):
+                    # spot_map = generate_map(density / 100)
+                    spot_map = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
+                    knowledge = [-1] * 291
+                    # used as threshold when entering the parking lot
+                    default_best_cost = 250
+                    best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
+                                                               exit_node,
+                                                               p_available, x, d_cost, w_cost, u_cost,
+                                                               default_best_cost, saving_threshold)
+                    cost = total_cost(prev_path, all_pair, exit_node, d_cost, w_cost, u_cost)
+                    print("Final:", prev_path[-1], "ParkOption:", prev_path[-1].empty_parking_slot(spot_map), "Length:",
+                          len(prev_path), "BackSteps:", back_steps, "Cost: ", cost)
+                    # density, saving_threshold, final position, path length, back steps, final parking options, path, map
+                    fo.write(str(density) + "\t" + str(saving_threshold) + "\t" + str(x) + "\t" + str([row, column, parking_row, parking_column])
+                             + "\t" + str(prev_path[-1]) + "\t" + str(len(prev_path)) + "\t" + str(cost)
+                             + "\t" + str(back_steps) + "\t" + str(prev_path[-1].empty_parking_slot(spot_map))
+                             + "\t" + str(list(map(lambda n: n.id, prev_path))) + "\t" + str(spot_map) + "\n")
+    fo.close()

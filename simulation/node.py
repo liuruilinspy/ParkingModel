@@ -1,8 +1,9 @@
 class Node:
 
-    def __init__(self, id):
+    def __init__(self, id, type):
         # node id
         self.id = id
+        self.type = type
 
     def empty_parking_slot(self, spot_map):
         s = []
@@ -15,7 +16,7 @@ class Node:
         return str(self.id)
 
     def copy(self):
-        new_node = DriveNode(self.id)
+        new_node = Node(self.id)
         if hasattr(self, "neighbors"):
             new_node.neighbors = list(self.neighbors)
         if hasattr(self, "parking_spots"):

@@ -133,9 +133,8 @@ def search_path(start, end):
 
 def all_path(nodeset):
     all_pair = {}
-    nodeitems = [(key, val) for key, val in nodeset.items() if val.type == "D"]
-    for k1, start in nodeitems:
-        for k2, end in nodeitems:
+    for k1, start in nodeset:
+        for k2, end in nodeset:
             if k1 == k2:
                 continue
             all_paths = search_path(start, end)
@@ -407,10 +406,11 @@ if __name__ == "__main__":
     sigma = 1
 
     # all the paths between all node pairs
-    all_pair = all_path(nodeset)
+    drive_nodeset = [(key, val) for key, val in nodeset.items() if val.type == "D"]
+    all_pair = all_path(drive_nodeset)
 
     # used as threshold when entering the parking lot
-    default_best_cost = shortest_path(all_pair, enter_node, exit_node) * w_cost
+    default_best_cost = len(shortest_path(all_pair, enter_node, exit_node)) * w_cost
 
     # simple test
 
@@ -441,7 +441,7 @@ if __name__ == "__main__":
     for density in range(10, 100, 10):
         print("Density", density)
         for i in range(100):
-            print("--Map", i)
+            print("  --Map", i)
             spot_map, spot_pdf = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
             xs = ["G", spot_pdf, 0.1, 0.2, 0.3, 0.4, 0.5]
             for saving_threshold in [1, 5, 10, 15, 20]:
@@ -462,7 +462,7 @@ if __name__ == "__main__":
                                 + "\t" + str(prev_path[-1])
                                 + "\t" + str(prev_path[-1].empty_parking_spot(spot_map))
                                 + "\t" + str(len(prev_path))
-                                + "\t" + str(back_steps) +
+                                + "\t" + str(back_steps)
                                 + "\t" + str(list(map(lambda n: n.id, prev_path)))
                                 + "\t" + str(spot_map) + "\n")
         fo.close()

@@ -5,7 +5,7 @@ from simulation.search7 import all_path, shortest_path, generate_gaussian_map, e
 
 if __name__ == "__main__":
     # row, column, parking_row, parking_column
-    row, column, parking_row, parking_column = 2, 2, 1, 1
+    row, column, parking_row, parking_column = 2, 2, 10, 20
 
     print("-- generate graph --", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)

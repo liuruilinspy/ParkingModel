@@ -5,7 +5,7 @@ class Node:
         self.id = id
         self.type = type
 
-    def empty_parking_slot(self, spot_map):
+    def empty_parking_spot(self, spot_map):
         s = []
         for spot in self.parking_spots:
             if spot_map[spot] == 0:

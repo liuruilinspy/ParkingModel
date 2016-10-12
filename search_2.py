@@ -46,7 +46,6 @@ if __name__ == "__main__":
         for density in range(10, 100, 10):
             print("  -- Density", density, datetime.datetime.now())
             print("    -- Progress [", end="", flush=True)
-
             for i in range(100):
                 if i % 10 == 0:
                     print("=", end="", flush=True)

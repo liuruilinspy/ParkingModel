@@ -6,16 +6,16 @@ if __name__ == "__main__":
     # row, column, parking_row, parking_column
     row, column, parking_row, parking_column = 2, 2, 10, 20
 
+    print("--- generate graph ---")
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)
     total_spots = d_size + p_size + n_size
-
-    # nodeset = load_spot_graph("spot_graph")
-    # total_spots = 179
 
     enter_node = nodeset[0]
 
     # center
-    exit_node = nodeset[1 + row / 2 * (1 + 2 + parking_column)]
+    total_row = (1 + parking_column + 2) * row + 1
+    total_col = (1 + parking_row + 2) * column + 1
+    exit_node = nodeset[int(total_row / 2) * total_col + int(total_col / 2)]
 
     # drive cost of one spot distance
     d_cost = 1
@@ -28,37 +28,15 @@ if __name__ == "__main__":
     sigma = 1
 
     # all the paths between all node pairs
-    drive_nodeset = [(key, val) for key, val in nodeset.items() if val.type == "D"]
+    drive_nodeset = [(key, val) for key, val in nodeset.items() if val.type == "D" or val.type == "C"]
+    print("--- search all path in graph ---")
     all_pair = all_path(drive_nodeset)
 
     # used as threshold when entering the parking lot
-    default_best_cost = len(shortest_path(all_pair, enter_node, exit_node)) * w_cost
-
-    # simple test
-
-    # # occupancy density
-    # density = 50
-    # # stop forward search threshold
-    # saving_threshold = 1
-    # # visited node
-    # knowledge = [-1] * 291
-    # # used as threshold when entering the parking lot
-    # default_best_cost = 250
-    #
-    # sigma = 1
-    #
-    # spot_map, spot_pdf = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
-    #
-    # for x in ["G", 0.1, 0.2, 0.3, 0.4, 0.5]:
-    #     best_node, path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node,
-    #                                             x, d_cost, w_cost, u_cost, default_best_cost, saving_threshold)
-    #     print("Final:", path[-1], "ParkOption:", path[-1].empty_parking_spot(spot_map), "Length:", len(path),
-    #           "BackSteps:", back_steps, "Cost:", total_cost(path, all_pair, exit_node, d_cost, w_cost, u_cost))
-    #
+    default_best_cost = (len(shortest_path(all_pair, enter_node, exit_node)) - 1) * w_cost
 
     fo = open("2_2.txt", "w")
-    fo.write(
-        "map \t density \t saving_threshold \t x_value \t cost \t final_position \t final_parking_options \t path_length \t back_steps  \t path \t map \n")
+    fo.write("map \t density \t saving_threshold \t x_value \t cost \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
 
     for density in range(10, 100, 10):
         print("Density", density)
@@ -66,7 +44,7 @@ if __name__ == "__main__":
             print("  --Map", i)
             spot_map, spot_pdf = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
             xs = ["G", spot_pdf, 0.1, 0.2, 0.3, 0.4, 0.5]
-            for saving_threshold in [1, 5, 10, 15, 20]:
+            for saving_threshold in [2, 5, 10, 15]:
                 for j in range(len(xs)):
                     key = str(j) + str(saving_threshold)
                     knowledge = [-1] * total_spots
@@ -77,14 +55,16 @@ if __name__ == "__main__":
                     # print("Final:", prev_path[-1], "ParkOption:", prev_path[-1].empty_parking_spot(spot_map), "Length:",
                     #       len(prev_path), "BackSteps:", back_steps, "Cost: ", cost)
                     fo.write(str([row, column, parking_row, parking_column])
-                                + "\t" + str(density)
-                                + "\t" + str(saving_threshold)
-                                + "\t" + str(xs[j])
-                                + "\t" + str(cost)
-                                + "\t" + str(prev_path[-1])
-                                + "\t" + str(prev_path[-1].empty_parking_spot(spot_map))
-                                + "\t" + str(len(prev_path))
-                                + "\t" + str(back_steps)
-                                + "\t" + str(list(map(lambda n: n.id, prev_path)))
-                                + "\t" + str(spot_map) + "\n")
-        fo.close()
+                             + "\t" + str(density)
+                             + "\t" + str(saving_threshold)
+                             + "\t" + str(j)
+                             + "\t" + str(cost)
+                             + "\t" + str(back_steps)
+                             + "\t" + str(prev_path[-1])
+                             + "\t" + str(prev_path[-1].empty_parking_spot(spot_map))
+                             + "\t" + str(len(prev_path))
+                             + "\t" + str(list(map(lambda n: n.id, prev_path)))
+                             + "\t" + str(spot_map) + "\n")
+
+    fo.close()
+

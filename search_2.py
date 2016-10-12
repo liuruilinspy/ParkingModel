@@ -5,7 +5,7 @@ from simulation.search7 import all_path, shortest_path, generate_gaussian_map, e
 
 if __name__ == "__main__":
     # row, column, parking_row, parking_column
-    row, column, parking_row, parking_column = 2, 2, 10, 20
+    row, column, parking_row, parking_column = 2, 2, 1, 1
 
     print("-- generate graph --", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     fo = open("2_2.txt", "w")
     fo.write(
         "map \t density \t saving_threshold \t x_value \t cost \t cost-truth \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
-    for saving_threshold in [4, 8, 12, 16]:
+    for saving_threshold in [4, 8, 12, 16, 20]:
         f_cost = open("2_2_cost_" + str(saving_threshold), "w")
         f_cost.write("density \t ground_truth \t historical \t 10% \t 20% \t 30% \t 40% \t 50% \n")
         print("-- Threshold", saving_threshold)

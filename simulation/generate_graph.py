@@ -36,7 +36,7 @@ def generate_graph(row, column, row_spots, column_spots):
             for neigbr in neighbors:
                 if nodeset[neigbr].type == "P":
                     cur_node.parking_spots.add(neigbr)
-                elif nodeset[neigbr].type == "D":
+                elif nodeset[neigbr].type == "D" or nodeset[neigbr].type == "C":
                     cur_node.neighbors.add(nodeset[neigbr])
         # print()
     # for key, val in nodeset.items():
@@ -60,7 +60,7 @@ def generate_graph(row, column, row_spots, column_spots):
 def get_row(i, square_width, square_height, total_col):
     index = i % (square_height + 1)
     if index == 0:
-        return empty_row(i, total_col)
+        return empty_row(i, square_width, total_col)
     elif index == 1 or index == square_height:
         return side_row(i, square_width, total_col)
     else:
@@ -91,10 +91,13 @@ def mid_row(i, square_width, total_col):
     return cur_row
 
 
-def empty_row(i, total_col):
+def empty_row(i, square_width, total_col):
     cur_row = []
     for c in range(total_col):
-        cur_row.append(Node(i * total_col + c, "D"))
+        if c % (square_width + 1) == 0:
+            cur_row.append(Node(i * total_col + c, "C"))
+        else:
+            cur_row.append(Node(i * total_col + c, "D"))
     return cur_row
 
 def get_neighbor(i, j, total_row, total_column):

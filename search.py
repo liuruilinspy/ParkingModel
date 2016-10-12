@@ -1,3 +1,5 @@
+import datetime
+
 from simulation.generate_graph import generate_graph
 from simulation.search7 import all_path, shortest_path, generate_gaussian_map, execute, total_cost
 
@@ -6,9 +8,12 @@ if __name__ == "__main__":
     # row, column, parking_row, parking_column
     row, column, parking_row, parking_column = 2, 2, 10, 20
 
-    print("--- generate graph ---")
+    print("--- generate graph ---", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)
     total_spots = d_size + p_size + n_size
+
+    # nodeset = load_spot_graph("spot_graph")
+    # total_spots = 179
 
     enter_node = nodeset[0]
 
@@ -29,22 +34,25 @@ if __name__ == "__main__":
 
     # all the paths between all node pairs
     drive_nodeset = [(key, val) for key, val in nodeset.items() if val.type == "D" or val.type == "C"]
-    print("--- search all path in graph ---")
+    print("--- search all path in graph ---", datetime.datetime.now())
     all_pair = all_path(drive_nodeset)
 
     # used as threshold when entering the parking lot
-    default_best_cost = (len(shortest_path(all_pair, enter_node, exit_node)) - 1) * w_cost
+    default_best_cost = 5 * (len(shortest_path(all_pair, enter_node, exit_node)) - 1) * w_cost
 
     fo = open("2_2.txt", "w")
-    fo.write("map \t density \t saving_threshold \t x_value \t cost \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
+    fo.write(
+        "map \t density \t saving_threshold \t x_value \t cost \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
 
     for density in range(10, 100, 10):
-        print("Density", density)
+        print("--- Density", density, datetime.datetime.now())
+        print("     -- Progress [", end="", flush=True)
         for i in range(100):
-            print("  --Map", i)
+            if i % 10 == 0:
+                print("=", end="", flush=True)
             spot_map, spot_pdf = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
             xs = ["G", spot_pdf, 0.1, 0.2, 0.3, 0.4, 0.5]
-            for saving_threshold in [2, 5, 10, 15]:
+            for saving_threshold in [2, 5, 10, 15, 20]:
                 for j in range(len(xs)):
                     key = str(j) + str(saving_threshold)
                     knowledge = [-1] * total_spots
@@ -65,6 +73,6 @@ if __name__ == "__main__":
                              + "\t" + str(len(prev_path))
                              + "\t" + str(list(map(lambda n: n.id, prev_path)))
                              + "\t" + str(spot_map) + "\n")
-
+        print("]")
     fo.close()
 

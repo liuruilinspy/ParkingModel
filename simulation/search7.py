@@ -352,7 +352,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
         exp = choice_expectation(knowledge, spot_map, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, x)
         # best expected saving time
         next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
-        if best_saving < saving_threshold:
+        if best_saving <= saving_threshold:
             if cur_node == best_node:
                 # arrive at best spot
                 finished = True
@@ -373,7 +373,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
         if all_node_visited(nodeset, knowledge):
             finished = True
 
-        if len(prev_path) > 500:
+        if len(prev_path) > 8000:
             print(str(prev_path[-1]), str(prev_path[-2]), str(prev_path[-3]))
             raise Exception("Fall into infinite loop")
     return best_node, prev_path, back_steps
@@ -436,9 +436,13 @@ if __name__ == "__main__":
                 for j in range(len(xs)):
                     key = str(j) + str(saving_threshold)
                     knowledge = [-1] * total_spots
+                    if j == 0:
+                        saving_threshold = 0
+
                     best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
                                                                exit_node, xs[j], d_cost, w_cost, u_cost,
                                                                default_best_cost, saving_threshold)
+
                     cost = total_cost(prev_path, all_pair, exit_node, d_cost, w_cost, u_cost)
                     if j == 0:
                         truth = cost

@@ -53,7 +53,6 @@ def generate_graph(row, column, row_spots, column_spots):
         else:
             n_size += 1
 
-
     return nodeset, d_size, p_size, n_size
 
 
@@ -111,6 +110,20 @@ def get_neighbor(i, j, total_row, total_column):
     if j + 1 <= total_column - 1:
         neighbors.append(total_column * i + j + 1)
     return neighbors
+
+def get_mini_graph(row, column, row_spots, column_spots):
+    start = Node(0, "C")
+    square_width = 2 + row_spots
+    square_height = 2 + column_spots
+
+    for i in range(row):
+        container = set()
+        for j in range(column):
+            index = i * column + j
+            if j % square_width == 0:
+                container = set()
+            else:
+                container.add(Node(index, "m"))
 
 
 if __name__ == "__main__":

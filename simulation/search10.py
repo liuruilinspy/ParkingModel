@@ -169,7 +169,6 @@ def all_path(nodeset):
 
 def single_work(i, all_pair, nodeset, partial_set, done_work):
     count = 0
-    print("Start Processor ", i)
     for k1, start in partial_set:
         if count % 10 == 0:
             print(datetime.datetime.now(), "Processor", i, "report", str(round(len(all_pair) * 100 / (len(nodeset) * len(nodeset)), 1)) + "%")

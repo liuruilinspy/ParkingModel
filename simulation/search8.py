@@ -61,7 +61,6 @@ def generate_map(perctge, total_spots):
 
 def generate_gaussian_map(nodeset, all_pair, exit_node, sigma, perctge, total_spots):
     spot_map = [0] * total_spots
-    occupancy = int(total_spots * perctge)
     spot_pdf = {}
 
     distance_distribution = {}
@@ -77,6 +76,7 @@ def generate_gaussian_map(nodeset, all_pair, exit_node, sigma, perctge, total_sp
     exp = 0
     pdf = {}
     slots = {}
+    total_parking = 0
     for key, val in distance_distribution.items():
         p = round(scipy.stats.norm(0, sigma).pdf(key / 3), 2)
         pdf[key] = p
@@ -84,11 +84,12 @@ def generate_gaussian_map(nodeset, all_pair, exit_node, sigma, perctge, total_sp
         for slot in val:
             parking.update(slot.empty_parking_spot(spot_map))
         slots[key] = parking
+        total_parking += len(parking)
         exp += len(parking) * p
 
-
+    occupancy = int(total_parking * perctge)
     # increment to comply with total occupancy percentage
-    increment = (occupancy - exp) / total_spots
+    increment = (occupancy - exp) / total_parking
 
     # print(increment)
 
@@ -310,7 +311,7 @@ def unknown_probability(candidate_node, x, parking_spot):
     elif isinstance(x, float):
         return x if len(parking_spot) > 0 else 1 - x
     elif isinstance(x, dict):
-        return 1 - x[candidate_node.id]
+        return x[candidate_node.id]
     else:
         raise Exception("Wrong type x")
 
@@ -336,7 +337,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
     cur_node = enter_node
     best_cost = default_best_cost
     # dummy best node
-    best_node = Node(0, "D")
+    best_node = nodeset[0]
     prev_path = [enter_node]
 
     finished = False
@@ -352,7 +353,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
         exp = choice_expectation(knowledge, spot_map, all_pair, choices, exit_node, prev_path, best_cost, d_cost, w_cost, u_cost, x)
         # best expected saving time
         next_node, best_saving = max(exp.items(), key=lambda t_e: t_e[1])
-        if best_saving <= saving_threshold:
+        if best_saving <= saving_threshold and len(best_node.empty_parking_spot(spot_map)):
             if cur_node == best_node:
                 # arrive at best spot
                 finished = True
@@ -360,7 +361,8 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
                 # head to current best spot
                 path = shortest_path(all_pair, cur_node, best_node)
                 if len(path) == 1 or len(path) == 0:
-                    print(saving_threshold, x, cur_node.id, best_node.id, exp)
+                    print(cur_node.id, next_node.id, path[0].id)
+                    print(saving_threshold, best_saving, best_cost, next_node.id, best_node.id, exp)
                 cur_node = path[1]
                 back_steps += 1
         else:
@@ -373,15 +375,33 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
         if all_node_visited(nodeset, knowledge):
             finished = True
 
-        if len(prev_path) > 500:
+        if len(prev_path) > 1000:
             print(str(prev_path[-1]), str(prev_path[-2]), str(prev_path[-3]))
             raise Exception("Fall into infinite loop")
     return best_node, prev_path, back_steps
 
+def ground_truth(drive_nodeset, all_pair, spot_map, enter, exit, d_cost, w_cost):
+    best_node = None
+    prev_path = None
+    best_cost = 1000000000000
+    for key, node in drive_nodeset:
+        if node == enter or len(node.empty_parking_spot(spot_map)) == 0:
+            continue
+        path = shortest_path(all_pair, enter, node)[1:]
+        walk = shortest_path(all_pair, node, exit)[1:]
+        cost = len(path) * d_cost + len(walk) * w_cost
+        if cost < best_cost:
+            best_node = node
+            best_cost = cost
+            prev_path = path
+    return best_node, prev_path, 0
+
+
+
 if __name__ == "__main__":
 
     # row, column, parking_row, parking_column
-    row, column, parking_row, parking_column = 2, 2, 10, 20
+    row, column, parking_row, parking_column = 2, 2, 1, 2
 
     print("-- generate graph --", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)
@@ -413,20 +433,20 @@ if __name__ == "__main__":
     all_pair = all_path(drive_nodeset)
 
     # used as threshold when entering the parking lot
-    default_best_cost = 5 * (len(shortest_path(all_pair, enter_node, exit_node)) - 1) * w_cost
+    default_best_cost = (len(drive_nodeset) - 1) * w_cost
 
-    fo = open("2_2.txt", "w")
+    fo = open("../2_2/2_2.txt", "w")
     fo.write(
         "map \t density \t saving_threshold \t x_value \t cost \t cost-truth \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
     for saving_threshold in [2 * w_cost, 4 * w_cost, 6 * w_cost]:
-        f_cost = open("2_2_cost_" + str(saving_threshold), "w")
+        f_cost = open("../2_2/2_2_cost_" + str(saving_threshold), "w")
         f_cost.write("density \t ground_truth \t historical \t 10% \t 20% \t 30% \t 40% \t 50% \n")
         print("-- Threshold", saving_threshold)
-        for density in range(10, 100, 20):
+        for density in [90]:
             print("  -- Density", density, datetime.datetime.now())
             print("    -- Progress [", end="", flush=True)
 
-            for i in range(100):
+            for i in range(10):
                 if i % 10 == 0:
                     print("=", end="", flush=True)
                 spot_map, spot_pdf = generate_gaussian_map(nodeset, all_pair, exit_node, sigma, density / 100, total_spots)
@@ -437,11 +457,11 @@ if __name__ == "__main__":
                     key = str(j) + str(saving_threshold)
                     knowledge = [-1] * total_spots
                     if j == 0:
-                        saving_threshold = 0
-
-                    best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
-                                                               exit_node, xs[j], d_cost, w_cost, u_cost,
-                                                               default_best_cost, saving_threshold)
+                        best_node, prev_path, back_steps = ground_truth(drive_nodeset, all_pair, spot_map, enter_node, exit_node, d_cost, w_cost)
+                    else:
+                        best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
+                                                                   exit_node, xs[j], d_cost, w_cost, u_cost,
+                                                                   default_best_cost, saving_threshold)
 
                     cost = total_cost(prev_path, all_pair, exit_node, d_cost, w_cost, u_cost)
                     if j == 0:

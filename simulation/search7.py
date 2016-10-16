@@ -381,7 +381,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
 if __name__ == "__main__":
 
     # row, column, parking_row, parking_column
-    row, column, parking_row, parking_column = 2, 2, 1, 1
+    row, column, parking_row, parking_column = 2, 2, 1, 2
 
     print("-- generate graph --", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)

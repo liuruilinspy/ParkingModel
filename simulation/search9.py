@@ -149,7 +149,7 @@ def all_path(nodeset):
     print(str(len(nodeset)) + " [", end="", flush=True)
     count = 0
     for k1, start in nodeset:
-        print(str(i) + " ", end="", flush=True)
+        print(str(count) + " ", end="", flush=True)
         count += 1
         for k2, end in nodeset:
             all_paths = search_path(start, end)

@@ -137,9 +137,17 @@ def all_path(nodeset):
     all_pair = {}
     for k1, start in nodeset:
         for k2, end in nodeset:
-            all_paths = search_path(start, end)
-            key = pair_key(start, end)
-            all_pair[key] = all_paths
+            if pair_key(end, start) in all_pair:
+                k = pair_key(start, end)
+                all_pair[k] = []
+                for p in all_pair[pair_key(end, start)]:
+                    d_p = list(p)
+                    d_p.reverse()
+                    all_pair[k].append(d_p)
+            else:
+                all_paths = search_path(start, end)
+                key = pair_key(start, end)
+                all_pair[key] = all_paths
     return all_pair
 
 
@@ -401,7 +409,7 @@ def ground_truth(drive_nodeset, all_pair, spot_map, enter, exit, d_cost, w_cost)
 if __name__ == "__main__":
 
     # row, column, parking_row, parking_column
-    row, column, parking_row, parking_column = 2, 2, 1, 2
+    row, column, parking_row, parking_column = 4, 4, 10, 20
 
     print("-- generate graph --", datetime.datetime.now())
     nodeset, d_size, p_size, n_size = generate_graph(row, column, parking_row, parking_column)

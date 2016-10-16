@@ -3,6 +3,7 @@ import random
 
 from functools import reduce
 
+import math
 import scipy.stats
 
 from simulation.generate_graph import generate_graph
@@ -143,11 +144,19 @@ def bfs(start, end, excludsion):
 
 def all_path(nodeset):
     all_pair = {}
+    n = len(nodeset) * len(nodeset)
+    x = math.ceil(n * 0.1)
+    print("[", end="", flush=True)
+    count = 0
     for k1, start in nodeset:
+        if count % x == 0:
+            print("=", end="", flush=True)
+        count += 1
         for k2, end in nodeset:
             all_paths = search_path(start, end)
             key = pair_key(start, end)
             all_pair[key] = all_paths
+    print("]")
     return all_pair
 
 
@@ -345,7 +354,7 @@ def execute(spot_map, nodeset, all_pair, knowledge, enter_node, exit_node, x, d_
     cur_node = enter_node
     best_cost = default_best_cost
     # dummy best node
-    best_node = nodeset[0]
+    best_node = enter_node
     prev_path = [enter_node]
 
     finished = False

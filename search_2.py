@@ -42,7 +42,7 @@ if __name__ == "__main__":
     fo = open("2_2/2_2.txt", "w")
     fo.write(
         "map \t density \t saving_threshold \t x_value \t cost \t cost-truth \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
-    for saving_threshold in [2 * w_cost, 4 * w_cost, 6 * w_cost]:
+    for saving_threshold in [w_cost, 2 * w_cost, 3*w_cost, 4 * w_cost, 6 * w_cost]:
         f_cost = open("2_2/2_2_cost_" + str(saving_threshold)+".txt", "w")
         f_cost.write("density \t ground_truth \t historical \t 10% \t 20% \t 30% \t 40% \t 50% \n")
         print("-- Threshold", saving_threshold)

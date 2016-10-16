@@ -145,12 +145,11 @@ def bfs(start, end, excludsion):
 def all_path(nodeset):
     all_pair = {}
     n = len(nodeset) * len(nodeset)
-    x = math.ceil(n * 0.1)
-    print("[", end="", flush=True)
+    x = math.ceil(n * 0.01)
+    print(str(len(nodeset)) + " [", end="", flush=True)
     count = 0
     for k1, start in nodeset:
-        if count % x == 0:
-            print("=", end="", flush=True)
+        print(str(k1) + " ", end="", flush=True)
         count += 1
         for k2, end in nodeset:
             all_paths = search_path(start, end)

@@ -1,7 +1,7 @@
 import datetime
 
 from simulation.generate_graph import generate_graph
-from simulation.search7 import all_path, shortest_path, generate_gaussian_map, execute, total_cost
+from simulation.search8 import all_path, generate_gaussian_map, execute, total_cost, ground_truth
 
 if __name__ == "__main__":
     # row, column, parking_row, parking_column
@@ -37,16 +37,16 @@ if __name__ == "__main__":
     all_pair = all_path(drive_nodeset)
 
     # used as threshold when entering the parking lot
-    default_best_cost = 5 * (len(shortest_path(all_pair, enter_node, exit_node)) - 1) * w_cost
+    default_best_cost = (len(drive_nodeset) - 1) * w_cost
 
-    fo = open("2_2.txt", "w")
+    fo = open("2_2/2_2.txt", "w")
     fo.write(
         "map \t density \t saving_threshold \t x_value \t cost \t cost-truth \t back_steps \t final_position \t final_parking_options \t path_length \t path \t map \n")
     for saving_threshold in [2 * w_cost, 4 * w_cost, 6 * w_cost]:
-        f_cost = open("2_2_cost_" + str(saving_threshold), "w")
+        f_cost = open("2_2/2_2_cost_" + str(saving_threshold), "w")
         f_cost.write("density \t ground_truth \t historical \t 10% \t 20% \t 30% \t 40% \t 50% \n")
         print("-- Threshold", saving_threshold)
-        for density in range(10, 100, 20):
+        for density in [10, 100, 10]:
             print("  -- Density", density, datetime.datetime.now())
             print("    -- Progress [", end="", flush=True)
 
@@ -62,11 +62,12 @@ if __name__ == "__main__":
                     key = str(j) + str(saving_threshold)
                     knowledge = [-1] * total_spots
                     if j == 0:
-                        saving_threshold = 0
-
-                    best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
-                                                               exit_node, xs[j], d_cost, w_cost, u_cost,
-                                                               default_best_cost, saving_threshold)
+                        best_node, prev_path, back_steps = ground_truth(drive_nodeset, all_pair, spot_map, enter_node,
+                                                                        exit_node, d_cost, w_cost)
+                    else:
+                        best_node, prev_path, back_steps = execute(spot_map, nodeset, all_pair, knowledge, enter_node,
+                                                                   exit_node, xs[j], d_cost, w_cost, u_cost,
+                                                                   default_best_cost, saving_threshold)
 
                     cost = total_cost(prev_path, all_pair, exit_node, d_cost, w_cost, u_cost)
                     if j == 0:
@@ -96,4 +97,3 @@ if __name__ == "__main__":
             print("]")
         f_cost.close()
     fo.close()
-

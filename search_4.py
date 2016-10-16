@@ -1,7 +1,7 @@
 import datetime
 
 from simulation.generate_graph import generate_graph
-from simulation.search9 import all_path, generate_gaussian_map, execute, total_cost, ground_truth
+from simulation.search10 import all_path, generate_gaussian_map, execute, total_cost, ground_truth
 
 if __name__ == "__main__":
     # row, column, parking_row, parking_column

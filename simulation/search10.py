@@ -8,6 +8,8 @@ import math
 import scipy.stats
 from multiprocessing import Process
 
+from multiprocessing import cpu_count
+
 from simulation.generate_graph import generate_graph
 from simulation.node import Node
 
@@ -146,9 +148,10 @@ def bfs(start, end, excludsion):
 
 def all_path(nodeset):
     all_pair = {}
-    workers = 16
+    workers = cpu_count()
     x = math.ceil(len(nodeset) / workers)
     done_work = []
+    process = []
     for i in range(workers):
         end = (i + 1) * x
         if end >= len(nodeset):
@@ -157,9 +160,10 @@ def all_path(nodeset):
             partial_set = nodeset[i * x: (i+1) * x]
         p = Process(target=single_work, args=(i, all_pair, nodeset, partial_set, done_work))
         p.start()
+        process.append(p)
 
-    while len(done_work) < workers:
-        continue
+    for p in process:
+        p.join()
 
     return all_pair
 
@@ -168,7 +172,7 @@ def single_work(i, all_pair, nodeset, partial_set, done_work):
     print("Start Processor ", i)
     for k1, start in partial_set:
         if count % 10 == 0:
-            print("Processor", i, "report", str(round(len(all_pair) * 100 / (len(nodeset) * len(nodeset)), 1)) + "%")
+            print(datetime.datetime.now(), "Processor", i, "report", str(round(len(all_pair) * 100 / (len(nodeset) * len(nodeset)), 1)) + "%")
         count += 1
         for k2, end in nodeset:
             all_paths = search_path(start, end)

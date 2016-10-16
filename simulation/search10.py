@@ -4,7 +4,9 @@ import random
 from functools import reduce
 
 import math
+
 import scipy.stats
+from multiprocessing import Process
 
 from simulation.generate_graph import generate_graph
 from simulation.node import Node
@@ -144,21 +146,36 @@ def bfs(start, end, excludsion):
 
 def all_path(nodeset):
     all_pair = {}
-    n = len(nodeset) * len(nodeset)
-    x = math.ceil(n * 0.01)
-    print(str(len(nodeset)) + " [", end="", flush=True)
+    workers = 16
+    x = math.ceil(len(nodeset) / workers)
+    done_work = []
+    for i in range(workers):
+        end = (i + 1) * x
+        if end >= len(nodeset):
+            partial_set = nodeset[i * x:]
+        else:
+            partial_set = nodeset[i * x: (i+1) * x]
+        p = Process(target=single_work, args=(i, all_pair, nodeset, partial_set, done_work))
+        p.start()
+
+    while len(done_work) < workers:
+        continue
+
+    return all_pair
+
+def single_work(i, all_pair, nodeset, partial_set, done_work):
     count = 0
-    for k1, start in nodeset:
+    print("Start Processor ", i)
+    for k1, start in partial_set:
+        if count % 10 == 0:
+            print("Processor", i, "report", str(round(len(all_pair) * 100 / (len(nodeset) * len(nodeset)), 1)) + "%")
+        count += 1
         for k2, end in nodeset:
             all_paths = search_path(start, end)
-            # print(str(count) + " ", end="", flush=True)
-            if count % 100 == 0:
-                print(count)
-            count += 1
             key = pair_key(start, end)
             all_pair[key] = all_paths
-    print("]")
-    return all_pair
+    done_work.append("Finished")
+
 
 
 def pair_key(start, end):

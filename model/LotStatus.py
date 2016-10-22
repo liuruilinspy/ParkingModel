@@ -7,8 +7,17 @@ class LotStatus:
     def __init__(self, num):
         self._num = 0                # total number of parking lots
         self._occupiedLots = 0       # occupied parking lots
-        self._freeLots = 0           # free parking lots
+        self._freeLots = num           # free parking lots
         self._lots = [0] * num  # parking lots list: 0 for free and 1 for occupied
+
+    def compare(self, lotStatus):
+        if self._num != lotStatus._num:
+            return -1
+        count = 0
+        for i in range(self._num):
+            if self._lots[i] != lotStatus._lots[i]:
+                count += 1
+        return count
 
     def isFree(self, id):
         """

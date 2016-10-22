@@ -17,7 +17,7 @@ def readTrackImageTitle(imagesDir):
             f, re.I)
         if result:
             id = int(result.group(10))
-            timeSlot = result.group(2)
+            timeSlot = "test-" + result.group(2)
             startFrame = int(result.group(4))
             endFrame = int(result.group(5))
             startX = float(result.group(6))
@@ -28,10 +28,11 @@ def readTrackImageTitle(imagesDir):
             dict[id] = track
     return dict
 
-def readTrackPath(pathFile):
+def readTrackPath(pathFile, trackMetaDict):
     """
     Read track path from file
     :param pathFile:
+    :param trackMetaDict : the dictionary for track meta data
     :return: track path dictionary
     """
     dict = {}
@@ -48,6 +49,22 @@ def readTrackPath(pathFile):
                 trackPath.clear()
             location = (float(path.group(2)), float(path.group(3)))
             trackPath.append(location)
+        else:
+            event = re.search(r'FINAL_OUTPUT: FRAME= (\d+) (LEAVING_EVENT: TRACK|PARKING_EVENT : TRACK |LEFT_EVENT: TRACK)\[ (\d+) \] (TAKES SPOT |IS LEAVING FROM SPOT|LEAVES FROM SPOT)\[ (\d+) \]', line.strip(), re.I)
+            if event:
+                metaTrackId = int(event.group(3))
+                spotId = int(event.group(5))
+                if metaTrackId not in trackMetaDict:
+                    print("track " + str(metaTrackId) + " not in trackMetaDict")
+                elif 'PARKING_EVENT' in line:
+                    trackMetaDict[metaTrackId].type = 1
+                    trackMetaDict[metaTrackId].spot = spotId
+                elif 'LEAVING_EVENT' in line:
+                    trackMetaDict[metaTrackId].type = 2
+                    trackMetaDict[metaTrackId].spot = spotId
+                elif 'LEFT_EVENT' in line:
+                    trackMetaDict[metaTrackId].type = 3
+                    trackMetaDict[metaTrackId].spot = spotId
     del dict[0]
     return dict
 
@@ -61,26 +78,26 @@ def trackMerge(trackFile, trackMeta, trackPath):
     """
     fo = open(trackFile, "r")
     lines = fo.readlines()
-    count = 0
     for line in lines:
         result = re.search(r'MERGE fromTrack= (\d+) toTrack= (\d+)', line, re.I)
         if result:
-            count += 1
             # update track metadata
             if (int(result.group(1)) in trackMeta) & (int(result.group(2)) in trackMeta):
                 fromTrack = trackMeta[int(result.group(1))]
                 toTrack = trackMeta[int(result.group(2))]
-                toTrack.startFrame = fromTrack.startFrame
-                toTrack.startX = fromTrack.startX
-                toTrack.startY = fromTrack.startY
-                del trackMeta[int(result.group(1))]
+                toTrack.preTrack = fromTrack.id
+                fromTrack.nextTrack = toTrack.id
+                #toTrack.startFrame = fromTrack.startFrame
+                #toTrack.startX = fromTrack.startX
+                #toTrack.startY = fromTrack.startY
+                #toTrack.type += 10
+                #fromTrack.type += 10
             # update track path
             # not every track is recorded
-            if (int(result.group(1)) in trackPath) & (int(result.group(2)) in trackPath):
-                fromTrack = trackPath[int(result.group(1))]
-                toTrack = trackPath[int(result.group(2))]
-                trackPath[int(result.group(2))] = fromTrack + toTrack
-                del trackPath[int(result.group(1))]
+           # if (int(result.group(1)) in trackPath) & (int(result.group(2)) in trackPath):
+                #fromTrack = trackPath[int(result.group(1))]
+                #toTrack = trackPath[int(result.group(2))]
+                #trackPath[int(result.group(2))] = fromTrack + toTrack
     return trackMeta, trackPath
 
 def deleteRepeatedEndPosition(trackMeta, trackPath):
@@ -141,25 +158,30 @@ def addNewTrack(newTrackFile, trackMeta):
                 id = int(result.group(2))
                 timeSlot = result.group(5)
                 endFrame = int(result.group(4))
-                trackMeta[id] = Track(id, timeSlot, 0, endFrame, 0, 0, 0, 0)
+                trackMeta[id] = Track(id, 'test-'+timeSlot, 0, endFrame, 0, 0, 0, 0)
+        fo.close()
     except IOError:
         print(newTrackFile + " not found")
-        return
+        return trackMeta
     finally:
-        fo.close()
+        try:
+            fo.close()
+        except IOError:
+            print(newTrackFile + " not found")
 
     return trackMeta
 
 def trackMergeTask(trackImageDir, pathFile, lotFile, newTrackFile):
     """
     Combine all functions together
-    :param trackImageDir:
-    :param pathFile:
-    :param lotFile:
+    :param trackImageDir: directory for all images
+    :param pathFile: video log
+    :param lotFile: manual log
+    :param newTrackFile: manual added after conflict check (can be an empty file)
     :return:
     """
     meta = readTrackImageTitle(trackImageDir)
-    path = readTrackPath(pathFile)
+    path = readTrackPath(pathFile, meta)
     trackMeta, trackPath = trackMerge(lotFile, meta, path)
     addNewTrack(newTrackFile, trackMeta)
     return trackMeta, trackPath

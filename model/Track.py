@@ -9,6 +9,12 @@ class Track:
         self.startY = startY        # start position Y
         self.endX = endX            # end position X
         self.endY = endY            # end position Y
+        self.fillList = []          # the list of spot that is labeled as taken
+        self.evacuateList = []      # the list of spot that is labeled as empty
+        self.type = 0               # 0 initial, 1 auto-detected park, 2 auto-detected leaving, 3 auto-detected left, +10 confirmed
+        self.spot = -1              # the assoicated spot, -1 means no spot
+        self.preTrack = -1
+        self.nextTrack = -1
 
     def __eq__(self, other):
         assert isinstance(other, self.__class__)

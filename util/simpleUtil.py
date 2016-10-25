@@ -4,6 +4,7 @@ import xml.dom.minidom
 from model.LotStatus import LotStatus
 from model.Spot import Spot
 from model.TimestampedEvent import TimestampedEvent
+from util.geometryUtil import intercept, shift
 
 
 # file specify the spot availability configuration now
@@ -110,7 +111,40 @@ def readParkingSpotCoordinate(file):
                 .set_lower_right([val[2], val[3]]) \
                 .set_upper_right([val[0], val[1]])
         spots_obj[key] = spot
-    return spots_obj
+
+    # adjust the spots so that it can be used to determine cell position
+    adjusted_spots = {}
+    for i in range(0, 179):
+        spot = Spot().set_timestamp(timestamp).set_id(i).set_type(0)
+        left_base = 0
+        if key < 29 or 62 <= key < 95 or 126 <= key < 156:
+            left_base = 1
+        shrink_scale = 0.75
+        shift_vector = [-5, 0]
+        if key < 29:
+            shrink_scale = 0.5
+            shift_vector = [-10, 0]
+        elif key >= 156:
+            shift_vector = [0, 0]
+
+        if left_base == 1:
+            spot.set_upper_left(shift(spots_obj[i].upper_left, shift_vector))
+            spot.set_upper_right(
+                shift(intercept(spots_obj[i].upper_left, spots_obj[i].upper_right, shrink_scale), shift_vector))
+            spot.set_lower_left(shift(spots_obj[i].lower_left, shift_vector))
+            spot.set_lower_right(
+                shift(intercept(spots_obj[i].lower_left, spots_obj[i].lower_right, shrink_scale), shift_vector))
+            adjusted_spots[i] = spot
+        else:
+            spot.set_upper_right(shift(spots_obj[i].upper_right, shift_vector))
+            spot.set_upper_left(
+                shift(intercept(spots_obj[i].upper_right, spots_obj[i].upper_left, shrink_scale), shift_vector))
+            spot.set_lower_right(shift(spots_obj[i].lower_right, shift_vector))
+            spot.set_lower_left(
+                shift(intercept(spots_obj[i].lower_right, spots_obj[i].lower_left, shrink_scale), shift_vector))
+            adjusted_spots[i] = spot
+
+    return adjusted_spots
 
 if __name__ == "__main__":
     print(readParkingSpotCoordinate("../data/20151102/test-2015-11-02-07_25_06parkingSpots.xml")[0])

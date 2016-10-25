@@ -22,3 +22,9 @@ def isLeft(p, line):
 
 def isRight(p, line):
     return isBelow(p, line)
+
+def intercept(p1, p2, scaler):
+    return [p1[0] + scaler * (p2[0] - p1[0]), p1[1] + scaler * (p2[1] - p1[1])]
+
+def shift(p, v):
+    return [p[0] + v[0],p[1] + v[1]]

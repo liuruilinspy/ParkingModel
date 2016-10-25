@@ -8,8 +8,6 @@ from model.Spot import Spot
 from util.geometryUtil import isBetween, line, isAbove, isBelow
 from util.simpleUtil import readParkingSpotCoordinate
 
-
-
 def locationTranslate(spots, p):
     """
     Translate location pixels to standard spots id.
@@ -25,14 +23,22 @@ def locationTranslate(spots, p):
             return spot
 
     # path spots
-    # first column (179)
+    # first column above 28
     if isBetween(p, line(spots[0].upper_left, spots[28].lower_left),
-                 line(spots[0].upper_right, spots[28].lower_right)):
-        return Spot().set_id(179).set_type(1).set_timestamp(spots[0].timestamp)
+                 line(spots[0].upper_right, spots[28].lower_right)) \
+            and isAbove(p, line(spots[28].lower_left, spots[28].lower_right)):
+        if isAbove(p, line(spots[0].lower_left, spots[0].lower_right)):
+            return Spot().set_id(0).set_type(0).set_timestamp(spots[0].timestamp)
+        elif isAbove(p, line(spots[13].upper_left, spots[13].upper_right)) \
+                and isBelow(p, line(spots[12].lower_left, spots[12].lower_right)):
+            return Spot().set_id(179).set_type(1).set_timestamp(spots[0].timestamp)
 
     # second column (180 - 214)
     if isBetween(p, line(spots[0].upper_right, spots[28].lower_right),
-                 line(spots[29].upper_left, spots[61].lower_left)):
+                 line(spots[29].upper_left, spots[61].lower_left)) \
+            or isBetween(p, line(spots[0].upper_left, spots[28].lower_left),
+                         line(spots[0].upper_right, spots[28].lower_right)) \
+                    and isBelow(p, line(spots[28].lower_left, spots[28].lower_right)):
         if isAbove(p, line(spots[29].upper_left, spots[62].upper_right)):
             # spot 180
             return Spot().set_id(180).set_type(1).set_timestamp(spots[0].timestamp)
@@ -105,7 +111,10 @@ def locationTranslate(spots, p):
 
     # eighth column (258 - 289)
     if isBetween(p, line(spots[126].upper_right, spots[155].lower_right),
-                 line(spots[156].upper_left, spots[178].lower_left)):
+                 line(spots[156].upper_left, spots[178].lower_left)) or \
+            (isBetween(p, line(spots[156].upper_left, spots[178].lower_left),
+                 line(spots[156].upper_right, spots[178].lower_right)) \
+            and isBelow(line(spots[178].lower_left, spots[178].lower_right))):
         if isAbove(p, line(spots[126].upper_left, spots[126].upper_right)):
             # spot 258
             return Spot().set_id(258).set_type(1).set_timestamp(spots[0].timestamp)
@@ -122,8 +131,9 @@ def locationTranslate(spots, p):
 
     # ninth column (290)
     if isBetween(p, line(spots[156].upper_left, spots[178].lower_left),
-                 line(spots[156].upper_right, spots[178].lower_right)):
-        return Spot().set_id(290).set_type(1).set_timestamp(spots[0].timestamp)
+                 line(spots[156].upper_right, spots[178].lower_right)) \
+            and isAbove(line(spots[156].upper_left, spots[156].upper_right)):
+        return Spot().set_id(156).set_type(1).set_timestamp(spots[0].timestamp)
 
     return Spot()
 

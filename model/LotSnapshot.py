@@ -24,10 +24,10 @@ class LotSnapshot:
                 continue
             if trackId == 1312:
                 print("Found")
-            spotsContourFile = self._lotConfigDir + trackMeta[trackId].timeSlot + "parkingSpots.xml"
-            if spotsContourFile not in spots_dict:
-                spots_dict[spotsContourFile] = readParkingSpotCoordinate(spotsContourFile)
-            spots = spots_dict[spotsContourFile]
+            if trackMeta[trackId].timeSlot not in spots_dict:
+                spotsContourFile = self._lotConfigDir + trackMeta[trackId].timeSlot + "parkingSpots.xml"
+                spots_dict[trackMeta[trackId].timeSlot] = readParkingSpotCoordinate(spotsContourFile)
+            spots = spots_dict[trackMeta[trackId].timeSlot]
             path = TrackPath()
             for p in trackPath[trackId]:
                 spot = locationTranslate(spots, p)
@@ -44,7 +44,7 @@ class LotSnapshot:
         if self._loaded:
             return
 
-        self.loadPath(trackPath, trackMeta)
+        #self.loadPath(trackPath, trackMeta)
         events = extractTimestampedEvent(trackMeta, trackPath, {})
         items = sorted(events, key=lambda v: (v.timeSlot, v.frame))
         it = iter(items)
@@ -87,7 +87,12 @@ class LotSnapshot:
 
     def getStatusAtFrame(self, timeSlot, frame):
         try:
-            return self._frames[timeSlot][frame].copy()
+            state_index = 0
+            # since there are usually <100 events in each slot, we don't use linear search instead of binary search
+            for key, value in self._frames[timeSlot].items():
+                if state_index < key <= frame:
+                    state_index = key
+            return self._frames[timeSlot][state_index].copy()
         except IndexError:
             print("Wrong timeSlot/frame number")
 
